@@ -16,6 +16,7 @@ from api.job import *
 from schema.schema import DROP_SCHEMA_SQL, CREATE_SCHEMA_SQL
 from schema.dummydata import seed_data
 
+IS_VERCEL = os.getenv("VERCEL", "") == "1"
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
@@ -26,16 +27,22 @@ db_url = os.getenv("DB_URL")
 
 if not db_url:
     raise ValueError("Error: DB_URL environment variable is not set.")
+
+MAX_RETRIES = 1 if IS_VERCEL else 0  # 0 = infinite retries for Docker
 engine = None
+attempts = 0
 while engine is None:
+    attempts += 1
     try:
         engine = sqlalchemy.create_engine(db_url)
         with engine.connect() as connection:
             print("Successfully connected to the database! 👍")
     except Exception as e:
         print(f"An error occurred while connecting to the database: {e}")
-        print("Retrying connection in 5 seconds...")
         engine = None
+        if MAX_RETRIES > 0 and attempts >= MAX_RETRIES:
+            raise RuntimeError(f"Failed to connect to database after {attempts} attempt(s): {e}")
+        print("Retrying connection in 5 seconds...")
         time.sleep(5)
 
 def execute_raw_sql(db_engine, sql_script):
@@ -61,7 +68,7 @@ def manage_database_on_startup():
         return
     if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
         return
-    if app.debug:
+    if app.debug and not IS_VERCEL:
         print("🚀 Starting **DEBUG** database reset (Drop/Create)...")
         try:
             execute_raw_sql(engine, DROP_SCHEMA_SQL)
@@ -71,7 +78,7 @@ def manage_database_on_startup():
         except Exception as e:
             print(f"\n🔥 Database reset failed: {e} 🔥")
     else:
-        print("Production mode detected (FLASK_DEBUG=0). Starting **CREATE ONLY** schema run.")
+        print("Production mode detected. Starting **CREATE ONLY** schema run.")
         try:
             execute_raw_sql(engine, CREATE_SCHEMA_SQL)
             print("✅ CREATE_SCHEMA_SQL executed. Existing data preserved.")
