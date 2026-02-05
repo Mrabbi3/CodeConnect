@@ -1,0 +1,169 @@
+DROP_SCHEMA_SQL = """
+DROP TABLE IF EXISTS admin_messages;
+DROP TABLE IF EXISTS chat_messages;
+DROP TABLE IF EXISTS project_requests;
+DROP TABLE IF EXISTS team_members;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS instructor_projects;
+DROP TABLE IF EXISTS application_messages;
+DROP TABLE IF EXISTS job_applications;
+DROP TABLE IF EXISTS jobs;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS projects;
+DROP TABLE IF EXISTS instructor_requests;
+DROP TABLE IF EXISTS password_reset_tokens;
+DROP TABLE IF EXISTS users;
+"""
+
+CREATE_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS users (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(150),
+	email VARCHAR(150) NOT NULL UNIQUE,
+	password VARCHAR(255) NOT NULL,
+	role INT NOT NULL,
+	permission INT NOT NULL DEFAULT 0,
+	instructor_id INT NULL,
+	graduation VARCHAR(15),
+	bio TEXT,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (instructor_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	user_id INT NOT NULL,
+	token VARCHAR(255) NOT NULL UNIQUE,
+	expires_at DATETIME NOT NULL,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS instructor_requests (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	student_id INT NOT NULL,
+	instructor_id INT NOT NULL,
+	status TINYINT DEFAULT 0,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+	FOREIGN KEY (instructor_id) REFERENCES users(id) ON DELETE CASCADE,
+	UNIQUE KEY unique_pending_request (student_id, instructor_id)
+);
+
+CREATE TABLE IF NOT EXISTS projects (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	user_id INT,
+	name VARCHAR(255) NOT NULL,
+	description TEXT NOT NULL,
+	status INT DEFAULT 0,
+	project_link VARCHAR(255),
+	github_link VARCHAR(255),
+	attachment_path VARCHAR(512) NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS jobs (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	user_id INT NOT NULL,
+	title VARCHAR(255) NOT NULL,
+	description TEXT NOT NULL,
+	link TEXT,
+	status INT NOT NULL DEFAULT 0,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS job_applications (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	job_id INT NOT NULL,
+	user_id INT NOT NULL,
+	resume_path VARCHAR(512) NULL,
+	cover_letter_path VARCHAR(512) NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+	UNIQUE KEY unique_application (job_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS application_messages (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	application_id INT NOT NULL,
+	user_id INT NOT NULL,
+	message_text TEXT NOT NULL,
+	attachment_path VARCHAR(512) NULL,
+	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (application_id) REFERENCES job_applications(id) ON DELETE CASCADE,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS comments (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	user_id INT NOT NULL,
+	project_id INT NOT NULL,
+	parent_comment_id INT NULL,
+	comment TEXT NOT NULL,
+	attachment_path VARCHAR(512) NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+	FOREIGN KEY (parent_comment_id) REFERENCES comments(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS instructor_projects (
+	instructor_id INT NOT NULL,
+	project_id INT NOT NULL,
+	status INT DEFAULT 0,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (instructor_id, project_id),
+	FOREIGN KEY (instructor_id) REFERENCES users(id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS teams (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(25) NOT NULL,
+	user_id INT NOT NULL,
+	project_id INT,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS team_members (
+	team_id INT NOT NULL,
+	user_id INT NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (team_id, user_id),
+	FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS project_requests (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	team_id INT NOT NULL,
+	project_id INT NOT NULL,
+	status TINYINT DEFAULT 0,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	project_id INT NOT NULL,
+	user_id INT NOT NULL,
+	message_text TEXT NOT NULL,
+	attachment_path VARCHAR(512) NULL,
+	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS admin_messages (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	user_id INT NOT NULL,
+	message TEXT NOT NULL,
+	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+"""

@@ -1,0 +1,8 @@
+Flask
+bcrypt
+sqlalchemy
+mysql-connector-python
+Flask-SocketIO
+eventlet
+python-dotenv
+resend
